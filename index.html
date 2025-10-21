@@ -568,11 +568,8 @@
             const avgSatisfaction = (attritionData.reduce((sum, emp) => sum + (emp.JobSatisfaction || 0), 0) / attritionData.length).toFixed(1);
             const overtimeRate = (attritionData.filter(d => d.OverTime === 'Yes').length / attritionData.length * 100).toFixed(1);
 
-            // Демографическая статистика
-            const maleCount = attritionData.filter(d => d.Gender === 'Male').length;
-            const femaleCount = attritionData.length - maleCount;
-            const malePercentage = ((maleCount / attritionData.length) * 100).toFixed(1);
-            const femalePercentage = ((femaleCount / attritionData.length) * 100).toFixed(1);
+            // Статистика по семейному положению
+            const maritalStats = calculateMaritalStats();
 
             statsDiv.innerHTML = `
                 <div class="metrics-container">
@@ -592,15 +589,33 @@
                         <div>Monthly</div>
                     </div>
                     <div class="metric-card">
-                        <h3>Gender Distribution</h3>
-                        <div class="metric-value">${malePercentage}% M</div>
-                        <div>${femalePercentage}% F</div>
+                        <h3>Marital Status</h3>
+                        <div class="metric-value">${maritalStats.mostCommon}</div>
+                        <div>Most Common</div>
                     </div>
                 </div>
             `;
 
             // Generate comprehensive EDA charts
             generateAdvancedEDACharts(chartsDiv);
+        }
+
+        // Calculate marital status statistics
+        function calculateMaritalStats() {
+            const maritalCounts = {};
+            attritionData.forEach(emp => {
+                if (emp.MaritalStatus) {
+                    maritalCounts[emp.MaritalStatus] = (maritalCounts[emp.MaritalStatus] || 0) + 1;
+                }
+            });
+            
+            const mostCommon = Object.entries(maritalCounts)
+                .sort((a, b) => b[1] - a[1])[0]?.[0] || 'Unknown';
+            
+            return {
+                counts: maritalCounts,
+                mostCommon: mostCommon
+            };
         }
 
         // Generate advanced EDA charts with real Chart.js
@@ -616,8 +631,8 @@
                         <canvas id="deptChart" width="400" height="300"></canvas>
                     </div>
                     <div class="chart-container">
-                        <h3>👥 Gender Distribution</h3>
-                        <canvas id="genderChart" width="400" height="300"></canvas>
+                        <h3>💍 Marital Status Distribution</h3>
+                        <canvas id="maritalChart" width="400" height="300"></canvas>
                     </div>
                     <div class="chart-container">
                         <h3>💰 Attrition by Income Level</h3>
@@ -650,7 +665,7 @@
 
             // Render all charts
             renderDepartmentChart(analysisResults);
-            renderGenderChart(analysisResults);
+            renderMaritalChart(analysisResults);
             renderIncomeChart(analysisResults);
             renderAgeDistributionChart(analysisResults);
             renderWorkLifeChart(analysisResults);
@@ -699,25 +714,42 @@
             });
         }
 
-        function renderGenderChart(analysis) {
-            const ctx = document.getElementById('genderChart').getContext('2d');
-            const maleCount = attritionData.filter(d => d.Gender === 'Male').length;
-            const femaleCount = attritionData.length - maleCount;
+        function renderMaritalChart(analysis) {
+            const ctx = document.getElementById('maritalChart').getContext('2d');
+            
+            // Анализ семейного положения
+            const maritalData = {};
+            attritionData.forEach(emp => {
+                if (emp.MaritalStatus) {
+                    maritalData[emp.MaritalStatus] = (maritalData[emp.MaritalStatus] || 0) + 1;
+                }
+            });
+
+            // Если данных нет, используем демо-данные
+            const finalMaritalData = Object.keys(maritalData).length > 0 ? maritalData : {
+                'Married': 45,
+                'Single': 35,
+                'Divorced': 20
+            };
+
+            const colors = {
+                'Married': 'rgba(52, 168, 83, 0.8)',
+                'Single': 'rgba(66, 133, 244, 0.8)',
+                'Divorced': 'rgba(234, 67, 53, 0.8)'
+            };
 
             new Chart(ctx, {
                 type: 'pie',
                 data: {
-                    labels: ['Male', 'Female'],
+                    labels: Object.keys(finalMaritalData),
                     datasets: [{
-                        data: [maleCount, femaleCount],
-                        backgroundColor: [
-                            'rgba(66, 133, 244, 0.8)',
-                            'rgba(234, 67, 53, 0.8)'
-                        ],
-                        borderColor: [
-                            'rgba(66, 133, 244, 1)',
-                            'rgba(234, 67, 53, 1)'
-                        ],
+                        data: Object.values(finalMaritalData),
+                        backgroundColor: Object.keys(finalMaritalData).map(status => 
+                            colors[status] || 'rgba(158, 158, 158, 0.8)'
+                        ),
+                        borderColor: Object.keys(finalMaritalData).map(status => 
+                            colors[status] ? colors[status].replace('0.8', '1') : 'rgba(158, 158, 158, 1)'
+                        ),
                         borderWidth: 2
                     }]
                 },
