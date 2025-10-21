@@ -13,7 +13,7 @@ let validationPredictions = null;
 
 // Schema configuration for employee attrition data
 const TARGET_FEATURE = 'Attrition'; // Binary classification target (Yes/No)
-const ID_FEATURE = 'EmployeeID'; // Identifier to exclude from features
+const ID_FEATURE = 'EmployeeNumber'; // Common ID field in HR datasets
 const NUMERICAL_FEATURES = ['Age', 'MonthlyIncome', 'YearsAtCompany', 'DistanceFromHome', 'TotalWorkingYears'];
 const CATEGORICAL_FEATURES = ['Department', 'EducationField', 'JobRole', 'MaritalStatus'];
 
@@ -34,17 +34,31 @@ async function loadAttritionData() {
         const text = await readFile(file);
         attritionData = parseCSV(text);
         
+        // Validate that we have the required columns
+        if (attritionData.length === 0) {
+            throw new Error('No data found in CSV file');
+        }
+        
+        const firstRow = attritionData[0];
+        if (!firstRow.hasOwnProperty('Attrition')) {
+            throw new Error('CSV file must contain "Attrition" column');
+        }
+
         statusDiv.innerHTML = `<div class="status success">
             ✅ Data loaded successfully!<br>
             📊 ${attritionData.length} employees, ${Object.keys(attritionData[0]).length} attributes<br>
             🎯 Target variable: Attrition
         </div>`;
 
+        console.log('Data loaded:', attritionData.length, 'records');
+        console.log('First record:', attritionData[0]);
+
         // Enable next steps
         document.getElementById('inspect-btn').disabled = false;
         document.getElementById('insights-btn').disabled = false;
 
     } catch (error) {
+        console.error('Error loading data:', error);
         statusDiv.innerHTML = `<div class="status error">Error loading data: ${error.message}</div>`;
     }
 }
@@ -66,21 +80,33 @@ function parseCSV(csvText) {
     
     // Parse headers first
     const headers = parseCSVLine(lines[0]);
+    console.log('CSV Headers:', headers);
     
-    return lines.slice(1).map(line => {
+    const data = lines.slice(1).map((line, index) => {
         const values = parseCSVLine(line);
         const obj = {};
         headers.forEach((header, i) => {
             // Handle missing values (empty strings)
-            obj[header] = i < values.length && values[i] !== '' ? values[i] : null;
+            let value = i < values.length && values[i] !== '' ? values[i] : null;
             
             // Convert numerical values to numbers if possible
-            if (obj[header] !== null && !isNaN(obj[header]) && obj[header] !== '') {
-                obj[header] = parseFloat(obj[header]);
+            if (value !== null && !isNaN(value) && value !== '') {
+                value = parseFloat(value);
             }
+            
+            obj[header] = value;
         });
+        
+        // Add EmployeeNumber if not present
+        if (!obj[ID_FEATURE]) {
+            obj[ID_FEATURE] = index + 1;
+        }
+        
         return obj;
-    });
+    }).filter(row => Object.keys(row).length > 0); // Remove empty rows
+    
+    console.log('Parsed data sample:', data.slice(0, 3));
+    return data;
 }
 
 function parseCSVLine(line) {
@@ -108,8 +134,11 @@ function parseCSVLine(line) {
 }
 
 // Data inspection and visualization
-async function inspectAttritionData() {
-    if (!attritionData) return;
+function inspectAttritionData() {
+    if (!attritionData || attritionData.length === 0) {
+        alert('Please load data first.');
+        return;
+    }
 
     const previewDiv = document.getElementById('data-preview');
     const statsDiv = document.getElementById('data-stats');
@@ -157,7 +186,7 @@ async function inspectAttritionData() {
         </div>
         
         <h3>Attrition by Department</h3>
-        <table>
+        <table class="stats-table">
             <thead>
                 <tr>
                     <th>Department</th>
@@ -188,7 +217,10 @@ async function inspectAttritionData() {
 
 // Create a preview table from data
 function createPreviewTable(data) {
+    if (!data || data.length === 0) return '<p>No data to display</p>';
+    
     const table = document.createElement('table');
+    table.className = 'preview-table';
     
     // Create header row
     const headerRow = document.createElement('tr');
@@ -204,7 +236,7 @@ function createPreviewTable(data) {
         const tr = document.createElement('tr');
         Object.values(row).forEach(value => {
             const td = document.createElement('td');
-            td.textContent = value !== null ? value : 'NULL';
+            td.textContent = value !== null && value !== undefined ? value : 'NULL';
             tr.appendChild(td);
         });
         table.appendChild(tr);
@@ -217,72 +249,79 @@ function createPreviewTable(data) {
 function createAttritionVisualizations() {
     if (!attritionData) return;
 
-    // Attrition by Department
-    const deptAttrition = {};
-    attritionData.forEach(emp => {
-        const dept = emp.Department || 'Unknown';
-        if (!deptAttrition[dept]) {
-            deptAttrition[dept] = { yes: 0, no: 0 };
-        }
-        if (emp[TARGET_FEATURE] === 'Yes') {
-            deptAttrition[dept].yes++;
-        } else {
-            deptAttrition[dept].no++;
-        }
-    });
-
-    const deptData = Object.entries(deptAttrition).map(([dept, stats]) => ({
-        index: dept,
-        value: (stats.yes / (stats.yes + stats.no)) * 100
-    }));
-
-    if (typeof tfvis !== 'undefined') {
-        tfvis.render.barchart(
-            { name: 'Attrition Rate by Department', tab: 'Charts' },
-            deptData,
-            { 
-                xLabel: 'Department', 
-                yLabel: 'Attrition Rate (%)',
-                yAxisDomain: [0, 100]
+    try {
+        // Attrition by Department
+        const deptAttrition = {};
+        attritionData.forEach(emp => {
+            const dept = emp.Department || 'Unknown';
+            if (!deptAttrition[dept]) {
+                deptAttrition[dept] = { yes: 0, no: 0 };
             }
-        );
-    }
-
-    // Attrition by Job Satisfaction
-    const satisfactionAttrition = {};
-    attritionData.forEach(emp => {
-        const satisfaction = emp.JobSatisfaction || 'Unknown';
-        if (!satisfactionAttrition[satisfaction]) {
-            satisfactionAttrition[satisfaction] = { yes: 0, no: 0 };
-        }
-        if (emp[TARGET_FEATURE] === 'Yes') {
-            satisfactionAttrition[satisfaction].yes++;
-        } else {
-            satisfactionAttrition[satisfaction].no++;
-        }
-    });
-
-    const satisfactionData = Object.entries(satisfactionAttrition).map(([sat, stats]) => ({
-        index: `Satisfaction ${sat}`,
-        value: (stats.yes / (stats.yes + stats.no)) * 100
-    }));
-
-    if (typeof tfvis !== 'undefined') {
-        tfvis.render.barchart(
-            { name: 'Attrition Rate by Job Satisfaction', tab: 'Charts' },
-            satisfactionData,
-            { 
-                xLabel: 'Job Satisfaction Level', 
-                yLabel: 'Attrition Rate (%)',
-                yAxisDomain: [0, 100]
+            if (emp[TARGET_FEATURE] === 'Yes') {
+                deptAttrition[dept].yes++;
+            } else {
+                deptAttrition[dept].no++;
             }
-        );
+        });
+
+        const deptData = Object.entries(deptAttrition).map(([dept, stats]) => ({
+            index: dept,
+            value: (stats.yes / (stats.yes + stats.no)) * 100
+        }));
+
+        if (typeof tfvis !== 'undefined') {
+            tfvis.render.barchart(
+                { name: 'Attrition Rate by Department', tab: 'Charts' },
+                deptData,
+                { 
+                    xLabel: 'Department', 
+                    yLabel: 'Attrition Rate (%)',
+                    yAxisDomain: [0, 100]
+                }
+            );
+        }
+
+        // Attrition by Job Satisfaction
+        const satisfactionAttrition = {};
+        attritionData.forEach(emp => {
+            const satisfaction = emp.JobSatisfaction || 'Unknown';
+            if (!satisfactionAttrition[satisfaction]) {
+                satisfactionAttrition[satisfaction] = { yes: 0, no: 0 };
+            }
+            if (emp[TARGET_FEATURE] === 'Yes') {
+                satisfactionAttrition[satisfaction].yes++;
+            } else {
+                satisfactionAttrition[satisfaction].no++;
+            }
+        });
+
+        const satisfactionData = Object.entries(satisfactionAttrition).map(([sat, stats]) => ({
+            index: `Satisfaction ${sat}`,
+            value: (stats.yes / (stats.yes + stats.no)) * 100
+        }));
+
+        if (typeof tfvis !== 'undefined') {
+            tfvis.render.barchart(
+                { name: 'Attrition Rate by Job Satisfaction', tab: 'Charts' },
+                satisfactionData,
+                { 
+                    xLabel: 'Job Satisfaction Level', 
+                    yLabel: 'Attrition Rate (%)',
+                    yAxisDomain: [0, 100]
+                }
+            );
+        }
+    } catch (error) {
+        console.error('Error creating visualizations:', error);
     }
 }
 
 // Generate business insights
 function generateInsights() {
-    if (!attritionData) return;
+    if (!attritionData) {
+        alert('Please load data first.');
+        return;
+    }
 
     const insightsDiv = document.getElementById('insights-output');
     
@@ -297,9 +336,9 @@ function generateInsights() {
     insightsDiv.innerHTML = `
         <div class="insight-card">
             <h4>🎯 Key Risk Factors Identified</h4>
-            <p><strong>Young Employees:</strong> ${youngEmployees.length} employees under 30 left (${(youngEmployees.length / totalAttrition * 100).toFixed(1)}% of total attrition)</p>
+            <p><strong>Young Employees:</strong> ${youngEmployees.length} employees under 30 left (${totalAttrition > 0 ? (youngEmployees.length / totalAttrition * 100).toFixed(1) : 0}% of total attrition)</p>
             <p><strong>Low Income:</strong> ${lowIncomeAttrition.length} employees earning < $5,000 left the company</p>
-            <p><strong>Sales Department:</strong> ${salesAttrition.length} employees left (highest attrition department)</p>
+            <p><strong>Sales Department:</strong> ${salesAttrition.length} employees left ${salesAttrition.length > 0 ? '(highest attrition department)' : ''}</p>
             <p><strong>Long Commute:</strong> ${highDistanceAttrition.length} employees with >10 miles commute left</p>
         </div>
         
@@ -319,8 +358,11 @@ function generateInsights() {
 }
 
 // Data preprocessing
-async function preprocessAttritionData() {
-    if (!attritionData) return;
+function preprocessAttritionData() {
+    if (!attritionData) {
+        alert('Please load data first.');
+        return;
+    }
 
     const outputDiv = document.getElementById('preprocessing-output');
     outputDiv.innerHTML = '<div class="status info">Preprocessing data...</div>';
@@ -330,6 +372,13 @@ async function preprocessAttritionData() {
         const ageMedian = calculateMedian(attritionData.map(emp => emp.Age).filter(age => age !== null));
         const incomeMedian = calculateMedian(attritionData.map(emp => emp.MonthlyIncome).filter(inc => inc !== null));
         
+        // Get all unique departments and job roles for one-hot encoding
+        const allDepartments = [...new Set(attritionData.map(emp => emp.Department).filter(dept => dept))];
+        const allJobRoles = [...new Set(attritionData.map(emp => emp.JobRole).filter(role => role))];
+        
+        console.log('Unique departments:', allDepartments);
+        console.log('Unique job roles:', allJobRoles);
+        
         // Preprocess data
         processedData = {
             features: [],
@@ -338,7 +387,7 @@ async function preprocessAttritionData() {
         };
         
         attritionData.forEach(emp => {
-            const features = extractEmployeeFeatures(emp, ageMedian, incomeMedian);
+            const features = extractEmployeeFeatures(emp, ageMedian, incomeMedian, allDepartments, allJobRoles);
             processedData.features.push(features);
             processedData.labels.push(emp[TARGET_FEATURE] === 'Yes' ? 1 : 0);
             processedData.employeeInfo.push({
@@ -353,6 +402,9 @@ async function preprocessAttritionData() {
         // Convert to tensors
         processedData.features = tf.tensor2d(processedData.features);
         processedData.labels = tf.tensor1d(processedData.labels);
+
+        console.log('Processed data features shape:', processedData.features.shape);
+        console.log('Processed data labels shape:', processedData.labels.shape);
 
         outputDiv.innerHTML = `
             <div class="status success">
@@ -371,27 +423,30 @@ async function preprocessAttritionData() {
         document.getElementById('train-btn').disabled = false;
 
     } catch (error) {
+        console.error('Error during preprocessing:', error);
         outputDiv.innerHTML = `<div class="status error">Error during preprocessing: ${error.message}</div>`;
-        console.error(error);
     }
 }
 
 // Extract features from employee data
-function extractEmployeeFeatures(emp, ageMedian, incomeMedian) {
+function extractEmployeeFeatures(emp, ageMedian, incomeMedian, allDepartments, allJobRoles) {
     // Impute missing values
-    const age = emp.Age !== null ? emp.Age : ageMedian;
-    const income = emp.MonthlyIncome !== null ? emp.MonthlyIncome : incomeMedian;
+    const age = emp.Age !== null && emp.Age !== undefined ? emp.Age : ageMedian;
+    const income = emp.MonthlyIncome !== null && emp.MonthlyIncome !== undefined ? emp.MonthlyIncome : incomeMedian;
     
-    // Standardize numerical features
-    const ageStd = calculateStdDev(attritionData.map(e => e.Age).filter(a => a !== null)) || 1;
-    const incomeStd = calculateStdDev(attritionData.map(e => e.MonthlyIncome).filter(i => i !== null)) || 1;
+    // Calculate standardization parameters
+    const ageValues = attritionData.map(e => e.Age).filter(a => a !== null && a !== undefined);
+    const incomeValues = attritionData.map(e => e.MonthlyIncome).filter(i => i !== null && i !== undefined);
+    
+    const ageStd = calculateStdDev(ageValues) || 1;
+    const incomeStd = calculateStdDev(incomeValues) || 1;
     
     const standardizedAge = (age - ageMedian) / ageStd;
     const standardizedIncome = (income - incomeMedian) / incomeStd;
     
     // One-hot encode categorical features
-    const deptOneHot = oneHotEncode(emp.Department, ['Sales', 'Research & Development', 'Human Resources']);
-    const jobRoleOneHot = oneHotEncode(emp.JobRole, ['Sales Executive', 'Research Scientist', 'Laboratory Technician', 'Manufacturing Director', 'Healthcare Representative', 'Manager', 'Sales Representative', 'Research Director', 'Human Resources']);
+    const deptOneHot = oneHotEncode(emp.Department, allDepartments);
+    const jobRoleOneHot = oneHotEncode(emp.JobRole, allJobRoles);
     
     // Start with numerical features
     let features = [
@@ -415,7 +470,7 @@ function extractEmployeeFeatures(emp, ageMedian, incomeMedian) {
 function calculateMedian(values) {
     if (values.length === 0) return 0;
     
-    const filtered = values.filter(v => v !== null && !isNaN(v));
+    const filtered = values.filter(v => v !== null && v !== undefined && !isNaN(v));
     if (filtered.length === 0) return 0;
     
     filtered.sort((a, b) => a - b);
@@ -432,7 +487,7 @@ function calculateMedian(values) {
 function calculateStdDev(values) {
     if (values.length === 0) return 0;
     
-    const filtered = values.filter(v => v !== null && !isNaN(v));
+    const filtered = values.filter(v => v !== null && v !== undefined && !isNaN(v));
     if (filtered.length === 0) return 0;
     
     const mean = filtered.reduce((sum, val) => sum + val, 0) / filtered.length;
@@ -452,7 +507,7 @@ function oneHotEncode(value, categories) {
 }
 
 // Model creation
-async function createAttritionModel() {
+function createAttritionModel() {
     if (!processedData) {
         alert('Please preprocess data first.');
         return;
@@ -495,7 +550,10 @@ async function createAttritionModel() {
 
 // Model training
 async function trainAttritionModel() {
-    if (!model || !processedData) return;
+    if (!model || !processedData) {
+        alert('Please create model first.');
+        return;
+    }
 
     const statusDiv = document.getElementById('training-status');
     const progressBar = document.getElementById('training-progress');
@@ -512,22 +570,25 @@ async function trainAttritionModel() {
         validationData = processedData.features.slice(splitIndex);
         validationLabels = processedData.labels.slice(splitIndex);
         
+        console.log('Training data shape:', trainFeatures.shape);
+        console.log('Validation data shape:', validationData.shape);
+        
         // Train the model
         trainingHistory = await model.fit(trainFeatures, trainLabels, {
             epochs: 50,
-            batchSize: 32,
+            batchSize: 16,
             validationData: [validationData, validationLabels],
             callbacks: {
                 onEpochEnd: (epoch, logs) => {
                     const progress = ((epoch + 1) / 50) * 100;
                     progressBar.style.width = progress + '%';
                     
-                    if ((epoch + 1) % 10 === 0) {
+                    if ((epoch + 1) % 10 === 0 || epoch === 0) {
                         statusDiv.innerHTML = `
                             <div class="status info">
                                 Epoch ${epoch + 1}/50<br>
-                                Accuracy: ${logs.acc ? logs.acc.toFixed(3) : 'N/A'}<br>
-                                Loss: ${logs.loss ? logs.loss.toFixed(4) : 'N/A'}
+                                Accuracy: ${logs.acc ? (logs.acc * 100).toFixed(1) + '%' : 'N/A'}<br>
+                                Validation Accuracy: ${logs.val_acc ? (logs.val_acc * 100).toFixed(1) + '%' : 'N/A'}
                             </div>
                         `;
                     }
@@ -566,21 +627,24 @@ async function trainAttritionModel() {
         // Update metrics display
         document.getElementById('accuracy-value').textContent = (finalAccuracy * 100).toFixed(1) + '%';
         document.getElementById('auc-value').textContent = '0.85';
+        
+        // Enable threshold slider and prediction
         document.getElementById('threshold-slider').disabled = false;
-
-        // Enable prediction
         document.getElementById('predict-btn').disabled = false;
         document.getElementById('recommend-btn').disabled = false;
 
     } catch (error) {
+        console.error('Error during training:', error);
         statusDiv.innerHTML = `<div class="status error">Error during training: ${error.message}</div>`;
-        console.error(error);
     }
 }
 
 // Predict attrition risk
 async function predictAttritionRisk() {
-    if (!model || !processedData) return;
+    if (!model || !processedData) {
+        alert('Please train model first.');
+        return;
+    }
 
     const outputDiv = document.getElementById('prediction-output');
     const riskListDiv = document.getElementById('high-risk-list');
@@ -592,7 +656,7 @@ async function predictAttritionRisk() {
         const allPredictions = model.predict(processedData.features);
         const predictionValues = await allPredictions.data();
         
-        const threshold = parseFloat(document.getElementById('threshold-slider').value);
+        const threshold = parseFloat(document.getElementById('threshold-slider').value) || 0.5;
         
         // Combine predictions with employee info
         predictions = processedData.employeeInfo.map((emp, index) => ({
@@ -617,7 +681,7 @@ async function predictAttritionRisk() {
         // Show high-risk employees
         riskListDiv.innerHTML = `
             <h3>High-Risk Employees (Requiring Immediate Attention)</h3>
-            <table>
+            <table class="risk-table">
                 <thead>
                     <tr>
                         <th>Employee ID</th>
@@ -633,10 +697,10 @@ async function predictAttritionRisk() {
                     ${highRiskEmployees.slice(0, 10).map(emp => `
                         <tr>
                             <td>${emp.id}</td>
-                            <td>${emp.department}</td>
-                            <td>${emp.jobRole}</td>
-                            <td>${emp.age}</td>
-                            <td>$${parseInt(emp.income).toLocaleString()}</td>
+                            <td>${emp.department || 'Unknown'}</td>
+                            <td>${emp.jobRole || 'Unknown'}</td>
+                            <td>${emp.age || 'N/A'}</td>
+                            <td>${emp.income ? '$' + parseInt(emp.income).toLocaleString() : 'N/A'}</td>
                             <td style="color: #dc3545; font-weight: bold;">${(emp.riskScore * 100).toFixed(1)}%</td>
                             <td>${getRecommendedAction(emp)}</td>
                         </tr>
@@ -651,19 +715,19 @@ async function predictAttritionRisk() {
         document.getElementById('export-risk-btn').disabled = false;
 
     } catch (error) {
+        console.error('Error during prediction:', error);
         outputDiv.innerHTML = `<div class="status error">Error during prediction: ${error.message}</div>`;
-        console.error(error);
     }
 }
 
 function getRecommendedAction(employee) {
-    if (employee.income < 5000) return 'Salary review + Mentorship';
-    if (employee.age < 30) return 'Career development program';
+    if (employee.income && employee.income < 5000) return 'Salary review + Mentorship';
+    if (employee.age && employee.age < 30) return 'Career development program';
     if (employee.department === 'Sales') return 'Enhanced sales training';
     return 'Personalized retention plan';
 }
 
-// Generate recommendations (unchanged from your version)
+// Generate recommendations
 function generateRecommendations() {
     const outputDiv = document.getElementById('recommendations-output');
     
@@ -716,7 +780,7 @@ function generateRecommendations() {
     `;
 }
 
-// Export functions (unchanged from your version)
+// Export functions
 async function exportAttritionResults() {
     const statusDiv = document.getElementById('export-status');
     statusDiv.innerHTML = '<div class="status info">Generating comprehensive report...</div>';
@@ -733,15 +797,37 @@ async function exportAttritionResults() {
 }
 
 async function exportRiskList() {
+    if (!predictions) {
+        alert('Please generate predictions first.');
+        return;
+    }
+
     const statusDiv = document.getElementById('export-status');
     statusDiv.innerHTML = '<div class="status info">Exporting high-risk employee list...</div>';
     
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Create CSV content
+    const highRiskEmployees = predictions.filter(emp => emp.highRisk);
+    let csvContent = 'EmployeeID,Department,JobRole,Age,MonthlyIncome,RiskScore,RecommendedAction\n';
+    
+    highRiskEmployees.forEach(emp => {
+        csvContent += `${emp.id},${emp.department || ''},${emp.jobRole || ''},${emp.age || ''},${emp.income || ''},${(emp.riskScore * 100).toFixed(1)}%,${getRecommendedAction(emp)}\n`;
+    });
+    
+    // Create download link
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'high_risk_employees.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
     
     statusDiv.innerHTML = `
         <div class="status success">
             👥 High-risk employee list exported!<br>
-            📋 CSV file with risk scores and recommendations<br>
+            📋 CSV file with ${highRiskEmployees.length} employees<br>
             🎯 Ready for HR intervention planning
         </div>
     `;
@@ -767,8 +853,15 @@ function toggleVisor() {
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('HR Analytics Dashboard initialized');
+    
     // Close visor on initial load
     if (typeof tfvis !== 'undefined' && tfvis.visor().isOpen()) {
         tfvis.visor().close();
     }
+    
+    // Add event listener for threshold slider
+    document.getElementById('threshold-slider').addEventListener('input', function(e) {
+        document.getElementById('threshold-value').textContent = e.target.value;
+    });
 });
