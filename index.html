@@ -568,6 +568,12 @@
             const avgSatisfaction = (attritionData.reduce((sum, emp) => sum + (emp.JobSatisfaction || 0), 0) / attritionData.length).toFixed(1);
             const overtimeRate = (attritionData.filter(d => d.OverTime === 'Yes').length / attritionData.length * 100).toFixed(1);
 
+            // Демографическая статистика
+            const maleCount = attritionData.filter(d => d.Gender === 'Male').length;
+            const femaleCount = attritionData.length - maleCount;
+            const malePercentage = ((maleCount / attritionData.length) * 100).toFixed(1);
+            const femalePercentage = ((femaleCount / attritionData.length) * 100).toFixed(1);
+
             statsDiv.innerHTML = `
                 <div class="metrics-container">
                     <div class="metric-card">
@@ -586,9 +592,9 @@
                         <div>Monthly</div>
                     </div>
                     <div class="metric-card">
-                        <h3>Overtime Rate</h3>
-                        <div class="metric-value">${overtimeRate}%</div>
-                        <div>Employees</div>
+                        <h3>Gender Distribution</h3>
+                        <div class="metric-value">${malePercentage}% M</div>
+                        <div>${femalePercentage}% F</div>
                     </div>
                 </div>
             `;
@@ -610,20 +616,28 @@
                         <canvas id="deptChart" width="400" height="300"></canvas>
                     </div>
                     <div class="chart-container">
-                        <h3>👥 Attrition by Age Group</h3>
-                        <canvas id="ageChart" width="400" height="300"></canvas>
+                        <h3>👥 Gender Distribution</h3>
+                        <canvas id="genderChart" width="400" height="300"></canvas>
                     </div>
                     <div class="chart-container">
                         <h3>💰 Attrition by Income Level</h3>
                         <canvas id="incomeChart" width="400" height="300"></canvas>
                     </div>
                     <div class="chart-container">
-                        <h3>😊 Job Satisfaction Impact</h3>
-                        <canvas id="satisfactionChart" width="400" height="300"></canvas>
+                        <h3>📈 Age Distribution</h3>
+                        <canvas id="ageDistChart" width="400" height="300"></canvas>
                     </div>
                     <div class="chart-container">
                         <h3>⚖️ Work-Life Balance Analysis</h3>
                         <canvas id="worklifeChart" width="400" height="300"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>🎓 Education Level Distribution</h3>
+                        <canvas id="educationChart" width="400" height="300"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>💼 Job Role Distribution</h3>
+                        <canvas id="jobRoleChart" width="400" height="300"></canvas>
                     </div>
                     <div class="chart-container">
                         <h3>🏠 Distance from Home Impact</h3>
@@ -636,10 +650,12 @@
 
             // Render all charts
             renderDepartmentChart(analysisResults);
-            renderAgeChart(analysisResults);
+            renderGenderChart(analysisResults);
             renderIncomeChart(analysisResults);
-            renderSatisfactionChart(analysisResults);
+            renderAgeDistributionChart(analysisResults);
             renderWorkLifeChart(analysisResults);
+            renderEducationChart(analysisResults);
+            renderJobRoleChart(analysisResults);
             renderDistanceChart(analysisResults);
         }
 
@@ -683,33 +699,41 @@
             });
         }
 
-        function renderAgeChart(analysis) {
-            const ctx = document.getElementById('ageChart').getContext('2d');
-            const ageGroups = analysis.ageGroups.map(a => a.group);
-            const attritionRates = analysis.ageGroups.map(a => parseFloat(a.attritionRate));
+        function renderGenderChart(analysis) {
+            const ctx = document.getElementById('genderChart').getContext('2d');
+            const maleCount = attritionData.filter(d => d.Gender === 'Male').length;
+            const femaleCount = attritionData.length - maleCount;
 
             new Chart(ctx, {
-                type: 'line',
+                type: 'pie',
                 data: {
-                    labels: ageGroups,
+                    labels: ['Male', 'Female'],
                     datasets: [{
-                        label: 'Attrition Rate %',
-                        data: attritionRates,
-                        backgroundColor: 'rgba(52, 168, 83, 0.2)',
-                        borderColor: 'rgba(52, 168, 83, 1)',
-                        borderWidth: 3,
-                        tension: 0.4,
-                        fill: true
+                        data: [maleCount, femaleCount],
+                        backgroundColor: [
+                            'rgba(66, 133, 244, 0.8)',
+                            'rgba(234, 67, 53, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgba(66, 133, 244, 1)',
+                            'rgba(234, 67, 53, 1)'
+                        ],
+                        borderWidth: 2
                     }]
                 },
                 options: {
                     responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Attrition Rate (%)'
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                    return `${context.label}: ${context.parsed} (${percentage}%)`;
+                                }
                             }
                         }
                     }
@@ -749,37 +773,54 @@
             });
         }
 
-        function renderSatisfactionChart(analysis) {
-            const ctx = document.getElementById('satisfactionChart').getContext('2d');
-            const satisfactionLevels = analysis.satisfactionStats.map(s => s.label);
-            const attritionRates = analysis.satisfactionStats.map(s => parseFloat(s.attritionRate));
+        function renderAgeDistributionChart(analysis) {
+            const ctx = document.getElementById('ageDistChart').getContext('2d');
+            
+            // Создаем гистограмму возрастов
+            const ageRanges = {
+                '18-25': 0, '26-30': 0, '31-35': 0, '36-40': 0,
+                '41-45': 0, '46-50': 0, '51-55': 0, '56-60': 0, '60+': 0
+            };
+
+            attritionData.forEach(emp => {
+                if (emp.Age >= 18 && emp.Age <= 25) ageRanges['18-25']++;
+                else if (emp.Age <= 30) ageRanges['26-30']++;
+                else if (emp.Age <= 35) ageRanges['31-35']++;
+                else if (emp.Age <= 40) ageRanges['36-40']++;
+                else if (emp.Age <= 45) ageRanges['41-45']++;
+                else if (emp.Age <= 50) ageRanges['46-50']++;
+                else if (emp.Age <= 55) ageRanges['51-55']++;
+                else if (emp.Age <= 60) ageRanges['56-60']++;
+                else ageRanges['60+']++;
+            });
 
             new Chart(ctx, {
-                type: 'doughnut',
+                type: 'bar',
                 data: {
-                    labels: satisfactionLevels,
+                    labels: Object.keys(ageRanges),
                     datasets: [{
-                        data: attritionRates,
-                        backgroundColor: [
-                            'rgba(234, 67, 53, 0.8)',
-                            'rgba(251, 188, 5, 0.8)',
-                            'rgba(52, 168, 83, 0.8)',
-                            'rgba(66, 133, 244, 0.8)'
-                        ],
-                        borderColor: [
-                            'rgba(234, 67, 53, 1)',
-                            'rgba(251, 188, 5, 1)',
-                            'rgba(52, 168, 83, 1)',
-                            'rgba(66, 133, 244, 1)'
-                        ],
+                        label: 'Number of Employees',
+                        data: Object.values(ageRanges),
+                        backgroundColor: 'rgba(52, 168, 83, 0.8)',
+                        borderColor: 'rgba(52, 168, 83, 1)',
                         borderWidth: 2
                     }]
                 },
                 options: {
                     responsive: true,
-                    plugins: {
-                        legend: {
-                            position: 'bottom'
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Employees'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Age Groups'
+                            }
                         }
                     }
                 }
@@ -814,6 +855,94 @@
                     plugins: {
                         legend: {
                             position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderEducationChart(analysis) {
+            const ctx = document.getElementById('educationChart').getContext('2d');
+            
+            const educationLevels = {
+                'Below College': 0,
+                'College': 0,
+                'Bachelor': 0,
+                'Master': 0,
+                'Doctor': 0
+            };
+
+            attritionData.forEach(emp => {
+                if (emp.Education === 1) educationLevels['Below College']++;
+                else if (emp.Education === 2) educationLevels['College']++;
+                else if (emp.Education === 3) educationLevels['Bachelor']++;
+                else if (emp.Education === 4) educationLevels['Master']++;
+                else if (emp.Education === 5) educationLevels['Doctor']++;
+            });
+
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(educationLevels),
+                    datasets: [{
+                        data: Object.values(educationLevels),
+                        backgroundColor: [
+                            'rgba(234, 67, 53, 0.8)',
+                            'rgba(251, 188, 5, 0.8)',
+                            'rgba(52, 168, 83, 0.8)',
+                            'rgba(66, 133, 244, 0.8)',
+                            'rgba(171, 71, 188, 0.8)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderJobRoleChart(analysis) {
+            const ctx = document.getElementById('jobRoleChart').getContext('2d');
+            
+            // Группируем по должностям (если есть поле JobRole, иначе используем Department)
+            const jobRoles = {};
+            attritionData.forEach(emp => {
+                const role = emp.JobRole || emp.Department || 'Unknown';
+                jobRoles[role] = (jobRoles[role] || 0) + 1;
+            });
+
+            // Берем топ-6 должностей
+            const topRoles = Object.entries(jobRoles)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 6);
+
+            new Chart(ctx, {
+                type: 'horizontalBar',
+                data: {
+                    labels: topRoles.map(r => r[0]),
+                    datasets: [{
+                        label: 'Number of Employees',
+                        data: topRoles.map(r => r[1]),
+                        backgroundColor: 'rgba(26, 115, 232, 0.8)',
+                        borderColor: 'rgba(26, 115, 232, 1)',
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Employees'
+                            }
                         }
                     }
                 }
@@ -869,8 +998,6 @@
                 '$5k-$8k': { total: 0, attrition: 0 },
                 'Over $8k': { total: 0, attrition: 0 }
             };
-            const satisfactionStats = {1: {total: 0, attrition: 0}, 2: {total: 0, attrition: 0}, 
-                                     3: {total: 0, attrition: 0}, 4: {total: 0, attrition: 0}};
 
             attritionData.forEach(emp => {
                 // Department analysis
@@ -893,12 +1020,6 @@
                 else if (emp.MonthlyIncome < 8000) incomeGroup = '$5k-$8k';
                 incomeGroups[incomeGroup].total++;
                 if (emp.Attrition === 'Yes') incomeGroups[incomeGroup].attrition++;
-
-                // Satisfaction analysis
-                if (emp.JobSatisfaction) {
-                    satisfactionStats[emp.JobSatisfaction].total++;
-                    if (emp.Attrition === 'Yes') satisfactionStats[emp.JobSatisfaction].attrition++;
-                }
             });
 
             return {
@@ -916,11 +1037,6 @@
                     group,
                     attritionRate: stats.total > 0 ? ((stats.attrition / stats.total) * 100).toFixed(1) : "0.0",
                     total: stats.total
-                })),
-                satisfactionStats: Object.entries(satisfactionStats).map(([level, stats]) => ({
-                    level,
-                    attritionRate: stats.total > 0 ? ((stats.attrition / stats.total) * 100).toFixed(1) : "0.0",
-                    label: ['Very Low', 'Low', 'High', 'Very High'][level-1]
                 }))
             };
         }
