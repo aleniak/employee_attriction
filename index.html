@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ABC Company - Employee Attrition Analysis</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs-vis@latest"></script>
+    <script src="attrition_app.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        .header p {
+            margin: 10px 0 0;
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        section {
+            margin: 30px;
+            padding: 25px;
+            border: 1px solid #e1e5e9;
+            border-radius: 10px;
+            background: #fff;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        h2 {
+            color: #1a73e8;
+            border-bottom: 2px solid #1a73e8;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        button {
+            background: linear-gradient(135deg, #1a73e8 0%, #0d62c9 100%);
+            color: white;
+            padding: 12px 25px;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            margin: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(26, 115, 232, 0.3);
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(26, 115, 232, 0.4);
+            background: linear-gradient(135deg, #0d62c9 0%, #1a73e8 100%);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        input[type="file"] {
+            margin: 10px 0;
+            padding: 10px;
+            border: 2px dashed #1a73e8;
+            border-radius: 8px;
+            width: 100%;
+            background: #f8f9fa;
+        }
+        .metrics-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .metric-card {
+            border: 1px solid #e1e5e9;
+            padding: 20px;
+            border-radius: 10px;
+            min-width: 250px;
+            flex: 1;
+            background: #f8f9fa;
+            text-align: center;
+        }
+        .metric-card h3 {
+            color: #1a73e8;
+            margin-top: 0;
+        }
+        .metric-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #1a73e8;
+            margin: 10px 0;
+        }
+        .slider-container {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .slider {
+            width: 100%;
+            margin: 10px 0;
+        }
+        .data-preview {
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        th, td {
+            border: 1px solid #e1e5e9;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+            color: white;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        .note {
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 4px solid #ffc107;
+        }
+        .insight-card {
+            background: linear-gradient(135deg, #d1ecf1 0%, #bee5eb 100%);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #17a2b8;
+        }
+        .recommendation {
+            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #28a745;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: 600;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 4px solid #17a2b8;
+        }
+
+        /* Стили для кнопки управления графиками */
+        #visor-toggle-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            padding: 15px 25px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #visor-toggle-btn:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        #visor-toggle-btn:active {
+            transform: translateY(-1px);
+        }
+
+        #visor-toggle-btn .icon {
+            font-size: 18px;
+        }
+
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        #visor-toggle-btn {
+            animation: slideInUp 0.5s ease-out;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 10px;
+            }
+            section {
+                margin: 15px;
+                padding: 20px;
+            }
+            .header {
+                padding: 30px 20px;
+            }
+            .header h1 {
+                font-size: 2em;
+            }
+            .metrics-container {
+                flex-direction: column;
+            }
+            #visor-toggle-btn {
+                bottom: 10px;
+                right: 10px;
+                padding: 12px 20px;
+                font-size: 12px;
+            }
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress {
+            height: 100%;
+            background: linear-gradient(135deg, #1a73e8 0%, #0d47a1 100%);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏢 ABC Company - Employee Attrition Analysis</h1>
+            <p>Predict and Prevent Employee Turnover with Machine Learning</p>
+        </div>
+        
+        <section id="overview">
+            <h2>📊 Project Overview</h2>
+            <div class="note">
+                <p><strong>Business Challenge:</strong> Employee attrition has increased from 14% to 25% in the last year. Salary hikes are not an option.</p>
+                <p><strong>Solution:</strong> Develop data-driven strategies to reduce attrition through non-monetary incentives and improved work conditions.</p>
+                <p><strong>Target:</strong> Reduce attrition from 25% to 12% within 12 months.</p>
+            </div>
+        </section>
+
+        <section id="data-load">
+            <h2>1. 📁 Load Employee Data</h2>
+            <p>Upload your employee attrition dataset (CSV format):</p>
+            <div>
+                <label for="attrition-file">Employee Data (CSV):</label>
+                <input type="file" id="attrition-file" accept=".csv">
+            </div>
+            <button id="load-data-btn" onclick="loadAttritionData()">Load Employee Data</button>
+            <div id="data-status"></div>
+        </section>
+
+        <section id="inspect">
+            <h2>2. 🔍 Data Inspection & Analysis</h2>
+            <button id="inspect-btn" onclick="inspectAttritionData()" disabled>Analyze Employee Data</button>
+            <div id="data-preview" class="data-preview"></div>
+            <div id="data-stats"></div>
+            <div id="attrition-charts"></div>
+        </section>
+
+        <section id="key-insights">
+            <h2>3. 💡 Key Business Insights</h2>
+            <button id="insights-btn" onclick="generateInsights()" disabled>Generate Insights</button>
+            <div id="insights-output"></div>
+        </section>
+
+        <section id="preprocessing">
+            <h2>4. 🛠 Data Preprocessing</h2>
+            <button id="preprocess-btn" onclick="preprocessAttritionData()" disabled>Preprocess Data</button>
+            <div class="slider-container">
+                <label for="test-size-slider">Test Set Size:</label>
+                <input type="range" id="test-size-slider" class="slider" min="10" max="40" step="5" value="20">
+                <span id="test-size-value">20%</span>
+            </div>
+            <div id="preprocessing-output"></div>
+        </section>
+
+        <section id="model">
+            <h2>5. 🤖 Machine Learning Model</h2>
+            <button id="create-model-btn" onclick="createAttritionModel()" disabled>Create Prediction Model</button>
+            <div class="model-options">
+                <label><input type="radio" name="model-type" value="randomforest" checked> Random Forest</label>
+                <label><input type="radio" name="model-type" value="logistic"> Logistic Regression</label>
+                <label><input type="radio" name="model-type" value="neuralnet"> Neural Network</label>
+            </div>
+            <div id="model-summary"></div>
+        </section>
+
+        <section id="training">
+            <h2>6. 🎯 Model Training</h2>
+            <button id="train-btn" onclick="trainAttritionModel()" disabled>Train Model</button>
+            <div class="progress-bar">
+                <div class="progress" id="training-progress" style="width: 0%"></div>
+            </div>
+            <div id="training-status"></div>
+            <div id="training-vis"></div>
+        </section>
+
+        <section id="metrics">
+            <h2>7. 📈 Performance Metrics</h2>
+            <div class="slider-container">
+                <label for="threshold-slider">Risk Threshold (for high-risk employees):</label>
+                <input type="range" id="threshold-slider" class="slider" min="0" max="1" step="0.01" value="0.5" disabled>
+                <span id="threshold-value">0.5</span>
+            </div>
+            <div id="metrics-output" class="metrics-container">
+                <div class="metric-card">
+                    <h3>Model Accuracy</h3>
+                    <div class="metric-value" id="accuracy-value">-</div>
+                    <div id="accuracy-metric"></div>
+                </div>
+                <div class="metric-card">
+                    <h3>Attrition Prediction</h3>
+                    <div class="metric-value" id="auc-value">-</div>
+                    <div id="auc-metric"></div>
+                </div>
+                <div class="metric-card">
+                    <h3>High-Risk Employees</h3>
+                    <div class="metric-value" id="risk-value">-</div>
+                    <div id="risk-metric"></div>
+                </div>
+            </div>
+            <div id="confusion-matrix"></div>
+        </section>
+
+        <section id="predictions">
+            <h2>8. 🔮 Risk Predictions</h2>
+            <button id="predict-btn" onclick="predictAttritionRisk()" disabled>Identify At-Risk Employees</button>
+            <div id="prediction-output"></div>
+            <div id="high-risk-list"></div>
+        </section>
+
+        <section id="recommendations">
+            <h2>9. 💼 HR Recommendations</h2>
+            <button id="recommend-btn" onclick="generateRecommendations()" disabled>Generate Action Plan</button>
+            <div id="recommendations-output"></div>
+        </section>
+
+        <section id="export">
+            <h2>10. 📤 Export Results</h2>
+            <button id="export-btn" onclick="exportAttritionResults()" disabled>Export Full Report</button>
+            <button id="export-risk-btn" onclick="exportRiskList()" disabled>Export High-Risk List</button>
+            <div id="export-status"></div>
+        </section>
+
+        <section id="deployment">
+            <h2>🚀 Deployment Guide</h2>
+            <div class="note">
+                <p><strong>GitHub Pages Deployment:</strong></p>
+                <ol>
+                    <li>Create repository: <code>abc-attrition-analysis</code></li>
+                    <li>Upload: <code>index.html</code> and <code>attrition_app.js</code></li>
+                    <li>Enable GitHub Pages in Settings → Pages</li>
+                    <li>Access at: <code>https://[username].github.io/abc-attrition-analysis</code></li>
+                </ol>
+                <p><strong>Expected Impact:</strong> $1.2M annual savings through reduced recruitment and training costs</p>
+            </div>
+        </section>
+    </div>
+
+    <button id="visor-toggle-btn" onclick="toggleVisor()">
+        <span class="icon">📊</span>
+        Show Analytics Dashboard
+    </button>
+
+    <script>
+        // Initialize slider values
+        document.getElementById('test-size-slider').addEventListener('input', function(e) {
+            document.getElementById('test-size-value').textContent = e.target.value + '%';
+        });
+
+        document.getElementById('threshold-slider').addEventListener('input', function(e) {
+            document.getElementById('threshold-value').textContent = e.target.value;
+        });
+
+        function toggleVisor() {
+            // This function will be implemented in the JS file
+            console.log('Toggle visualization panel');
+        }
+    </script>
+</body>
+</html>
