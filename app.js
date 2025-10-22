@@ -1051,3 +1051,6 @@ document.addEventListener('DOMContentLoaded', function() {
         predictAttrition();
     }, 1000);
 });
+
+window.inspectAttritionData = inspectAttritionData;
+console.log('inspectAttritionData registered:', typeof window.inspectAttritionData);
