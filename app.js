@@ -1,3 +1,5 @@
+// Employee Attrition Analysis with Real TensorFlow.js - COMPLETE WORKING VERSION
+// Enhanced with Real Machine Learning
 
 // Global variables
 let attritionData = null;
@@ -542,8 +544,12 @@ function analyzeModels() {
     displayFeatureImportance();
 }
 
+// ========== ADVANCED DATA ANALYSIS FUNCTIONS ==========
+
 // Enhanced data inspection and EDA - FIXED VERSION
 function inspectAttritionData() {
+    console.log('inspectAttritionData called'); // Debug log
+    
     if (!attritionData) {
         alert('Please load data first!');
         return;
@@ -666,20 +672,24 @@ function generateAdvancedEDACharts(container) {
     container.innerHTML = chartsHTML;
 
     // Render all charts
-    renderDepartmentChart(analysisResults);
-    renderMaritalChart(analysisResults);
-    renderIncomeChart(analysisResults);
-    renderAgeDistributionChart(analysisResults);
-    renderWorkLifeChart(analysisResults);
-    renderEducationChart(analysisResults);
+    setTimeout(() => {
+        renderDepartmentChart(analysisResults);
+        renderMaritalChart(analysisResults);
+        renderIncomeChart(analysisResults);
+        renderAgeDistributionChart(analysisResults);
+        renderWorkLifeChart(analysisResults);
+        renderEducationChart(analysisResults);
+    }, 100);
 }
 
 function renderDepartmentChart(analysis) {
-    const ctx = document.getElementById('deptChart').getContext('2d');
+    const ctx = document.getElementById('deptChart');
+    if (!ctx) return;
+    
     const departments = analysis.departmentStats.map(d => d.department);
     const attritionRates = analysis.departmentStats.map(d => parseFloat(d.attritionRate));
 
-    new Chart(ctx, {
+    new Chart(ctx.getContext('2d'), {
         type: 'bar',
         data: {
             labels: departments,
@@ -715,7 +725,8 @@ function renderDepartmentChart(analysis) {
 }
 
 function renderMaritalChart(analysis) {
-    const ctx = document.getElementById('maritalChart').getContext('2d');
+    const ctx = document.getElementById('maritalChart');
+    if (!ctx) return;
     
     // Анализ семейного положения
     const maritalData = {};
@@ -738,7 +749,7 @@ function renderMaritalChart(analysis) {
         'Divorced': 'rgba(234, 67, 53, 0.8)'
     };
 
-    new Chart(ctx, {
+    new Chart(ctx.getContext('2d'), {
         type: 'pie',
         data: {
             labels: Object.keys(finalMaritalData),
@@ -774,11 +785,13 @@ function renderMaritalChart(analysis) {
 }
 
 function renderIncomeChart(analysis) {
-    const ctx = document.getElementById('incomeChart').getContext('2d');
+    const ctx = document.getElementById('incomeChart');
+    if (!ctx) return;
+    
     const incomeGroups = analysis.incomeGroups.map(i => i.group);
     const attritionRates = analysis.incomeGroups.map(i => parseFloat(i.attritionRate));
 
-    new Chart(ctx, {
+    new Chart(ctx.getContext('2d'), {
         type: 'bar',
         data: {
             labels: incomeGroups,
@@ -806,7 +819,8 @@ function renderIncomeChart(analysis) {
 }
 
 function renderAgeDistributionChart(analysis) {
-    const ctx = document.getElementById('ageDistChart').getContext('2d');
+    const ctx = document.getElementById('ageDistChart');
+    if (!ctx) return;
     
     // Создаем гистограмму возрастов
     const ageRanges = {
@@ -826,7 +840,7 @@ function renderAgeDistributionChart(analysis) {
         else ageRanges['60+']++;
     });
 
-    new Chart(ctx, {
+    new Chart(ctx.getContext('2d'), {
         type: 'bar',
         data: {
             labels: Object.keys(ageRanges),
@@ -860,7 +874,8 @@ function renderAgeDistributionChart(analysis) {
 }
 
 function renderWorkLifeChart(analysis) {
-    const ctx = document.getElementById('worklifeChart').getContext('2d');
+    const ctx = document.getElementById('worklifeChart');
+    if (!ctx) return;
     
     // Анализ work-life balance
     const workLifeData = {};
@@ -878,7 +893,7 @@ function renderWorkLifeChart(analysis) {
         'Excellent': 10
     };
 
-    new Chart(ctx, {
+    new Chart(ctx.getContext('2d'), {
         type: 'polarArea',
         data: {
             labels: Object.keys(finalWorkLifeData),
@@ -904,7 +919,8 @@ function renderWorkLifeChart(analysis) {
 }
 
 function renderEducationChart(analysis) {
-    const ctx = document.getElementById('educationChart').getContext('2d');
+    const ctx = document.getElementById('educationChart');
+    if (!ctx) return;
     
     const educationLevels = {
         'Below College': 0,
@@ -932,7 +948,7 @@ function renderEducationChart(analysis) {
         educationLevels['Doctor'] = 5;
     }
 
-    new Chart(ctx, {
+    new Chart(ctx.getContext('2d'), {
         type: 'doughnut',
         data: {
             labels: Object.keys(educationLevels),
