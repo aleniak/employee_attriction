@@ -37,4 +37,21 @@ My first promt:
       Attrition: Employee attrition status(0 or 1)
 
 
-After thes promt Deepseek gave me the working prototype of my app, but it lacked EDA. So, then I asked it to 
+After this promt Deepseek gave me the working prototype of my app, but it lacked EDA. So, then I asked it to add more EDA to the application:
+
+      Please add more EDA analysis data - various data graphs and charts. 
+
+Then app stopped showing resulrs of the EDA analysis and I have written this promt:
+
+      Please make the "Run Comprehensive EDA" button work. You removed the function call on button click from the index.html file.
+
+Unfortunately, Deepseek was unable to fix this issue, so I fixed it myself.
+
+Then, I gave Deepseek an ipynb file, in whic I created, trained and tested several ML models and asked Deepseek to integrate the best model into the app.js in order to implement real ML model for my application. For this I used this promt:
+
+      I've prepared several machine learning models. Their results are here, along with a discussion of the training algorithm and information on the number of epochs, etc.
+      
+      Please integrate the best model into the epp.js file so that the data in the app is predicted by a real ML model.
+
+
+Resulting site: https://aleniak.github.io/employee_attriction/
