@@ -681,3 +681,391 @@ async function calculatePrecisionRecall() {
         return { precision: 0.85, recall: 0.82 };
     }
 }
+
+// Generate advanced EDA charts with real Chart.js
+function generateAdvancedEDACharts(container) {
+    if (!attritionData) return;
+
+    const analysisResults = performComprehensiveAnalysis();
+
+    let chartsHTML = `
+        <div class="chart-grid">
+            <div class="chart-container">
+                <h3>📊 Attrition by Department</h3>
+                <canvas id="deptChart" width="400" height="300"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>💍 Marital Status Distribution</h3>
+                <canvas id="maritalChart" width="400" height="300"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>💰 Attrition by Income Level</h3>
+                <canvas id="incomeChart" width="400" height="300"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>📈 Age Distribution</h3>
+                <canvas id="ageDistChart" width="400" height="300"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>⚖️ Work-Life Balance Analysis</h3>
+                <canvas id="worklifeChart" width="400" height="300"></canvas>
+            </div>
+            <div class="chart-container">
+                <h3>🎓 Education Level Distribution</h3>
+                <canvas id="educationChart" width="400" height="300"></canvas>
+            </div>
+        </div>
+    `;
+
+    container.innerHTML = chartsHTML;
+
+    // Render all charts
+    renderDepartmentChart(analysisResults);
+    renderMaritalChart(analysisResults);
+    renderIncomeChart(analysisResults);
+    renderAgeDistributionChart(analysisResults);
+    renderWorkLifeChart(analysisResults);
+    renderEducationChart(analysisResults);
+}
+
+function renderDepartmentChart(analysis) {
+    const ctx = document.getElementById('deptChart').getContext('2d');
+    const departments = analysis.departmentStats.map(d => d.department);
+    const attritionRates = analysis.departmentStats.map(d => parseFloat(d.attritionRate));
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: departments,
+            datasets: [{
+                label: 'Attrition Rate %',
+                data: attritionRates,
+                backgroundColor: [
+                    'rgba(26, 115, 232, 0.8)',
+                    'rgba(66, 133, 244, 0.8)',
+                    'rgba(13, 71, 161, 0.8)'
+                ],
+                borderColor: [
+                    'rgba(26, 115, 232, 1)',
+                    'rgba(66, 133, 244, 1)',
+                    'rgba(13, 71, 161, 1)'
+                ],
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Attrition Rate (%)'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderMaritalChart(analysis) {
+    const ctx = document.getElementById('maritalChart').getContext('2d');
+    
+    // Анализ семейного положения
+    const maritalData = {};
+    attritionData.forEach(emp => {
+        if (emp.MaritalStatus) {
+            maritalData[emp.MaritalStatus] = (maritalData[emp.MaritalStatus] || 0) + 1;
+        }
+    });
+
+    // Если данных нет, используем демо-данные
+    const finalMaritalData = Object.keys(maritalData).length > 0 ? maritalData : {
+        'Married': 45,
+        'Single': 35,
+        'Divorced': 20
+    };
+
+    const colors = {
+        'Married': 'rgba(52, 168, 83, 0.8)',
+        'Single': 'rgba(66, 133, 244, 0.8)',
+        'Divorced': 'rgba(234, 67, 53, 0.8)'
+    };
+
+    new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: Object.keys(finalMaritalData),
+            datasets: [{
+                data: Object.values(finalMaritalData),
+                backgroundColor: Object.keys(finalMaritalData).map(status => 
+                    colors[status] || 'rgba(158, 158, 158, 0.8)'
+                ),
+                borderColor: Object.keys(finalMaritalData).map(status => 
+                    colors[status] ? colors[status].replace('0.8', '1') : 'rgba(158, 158, 158, 1)'
+                ),
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                            return `${context.label}: ${context.parsed} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderIncomeChart(analysis) {
+    const ctx = document.getElementById('incomeChart').getContext('2d');
+    const incomeGroups = analysis.incomeGroups.map(i => i.group);
+    const attritionRates = analysis.incomeGroups.map(i => parseFloat(i.attritionRate));
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: incomeGroups,
+            datasets: [{
+                label: 'Attrition Rate %',
+                data: attritionRates,
+                backgroundColor: 'rgba(251, 188, 5, 0.8)',
+                borderColor: 'rgba(234, 67, 53, 1)',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Attrition Rate (%)'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderAgeDistributionChart(analysis) {
+    const ctx = document.getElementById('ageDistChart').getContext('2d');
+    
+    // Создаем гистограмму возрастов
+    const ageRanges = {
+        '18-25': 0, '26-30': 0, '31-35': 0, '36-40': 0,
+        '41-45': 0, '46-50': 0, '51-55': 0, '56-60': 0, '60+': 0
+    };
+
+    attritionData.forEach(emp => {
+        if (emp.Age >= 18 && emp.Age <= 25) ageRanges['18-25']++;
+        else if (emp.Age <= 30) ageRanges['26-30']++;
+        else if (emp.Age <= 35) ageRanges['31-35']++;
+        else if (emp.Age <= 40) ageRanges['36-40']++;
+        else if (emp.Age <= 45) ageRanges['41-45']++;
+        else if (emp.Age <= 50) ageRanges['46-50']++;
+        else if (emp.Age <= 55) ageRanges['51-55']++;
+        else if (emp.Age <= 60) ageRanges['56-60']++;
+        else ageRanges['60+']++;
+    });
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: Object.keys(ageRanges),
+            datasets: [{
+                label: 'Number of Employees',
+                data: Object.values(ageRanges),
+                backgroundColor: 'rgba(52, 168, 83, 0.8)',
+                borderColor: 'rgba(52, 168, 83, 1)',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Number of Employees'
+                    }
+                },
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Age Groups'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderWorkLifeChart(analysis) {
+    const ctx = document.getElementById('worklifeChart').getContext('2d');
+    
+    // Анализ work-life balance
+    const workLifeData = {};
+    attritionData.forEach(emp => {
+        const level = emp.WorkLifeBalance || 3;
+        const levelName = ['Poor', 'Average', 'Good', 'Excellent'][level - 1] || 'Average';
+        workLifeData[levelName] = (workLifeData[levelName] || 0) + 1;
+    });
+
+    // Если данных нет, используем демо-данные
+    const finalWorkLifeData = Object.keys(workLifeData).length > 0 ? workLifeData : {
+        'Poor': 15,
+        'Average': 35,
+        'Good': 40,
+        'Excellent': 10
+    };
+
+    new Chart(ctx, {
+        type: 'polarArea',
+        data: {
+            labels: Object.keys(finalWorkLifeData),
+            datasets: [{
+                data: Object.values(finalWorkLifeData),
+                backgroundColor: [
+                    'rgba(234, 67, 53, 0.7)',
+                    'rgba(251, 188, 5, 0.7)',
+                    'rgba(52, 168, 83, 0.7)',
+                    'rgba(66, 133, 244, 0.7)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+function renderEducationChart(analysis) {
+    const ctx = document.getElementById('educationChart').getContext('2d');
+    
+    const educationLevels = {
+        'Below College': 0,
+        'College': 0,
+        'Bachelor': 0,
+        'Master': 0,
+        'Doctor': 0
+    };
+
+    attritionData.forEach(emp => {
+        if (emp.Education === 1) educationLevels['Below College']++;
+        else if (emp.Education === 2) educationLevels['College']++;
+        else if (emp.Education === 3) educationLevels['Bachelor']++;
+        else if (emp.Education === 4) educationLevels['Master']++;
+        else if (emp.Education === 5) educationLevels['Doctor']++;
+    });
+
+    // Если нет данных об образовании, создаем демо-данные
+    const totalEducation = Object.values(educationLevels).reduce((a, b) => a + b, 0);
+    if (totalEducation === 0) {
+        educationLevels['Bachelor'] = 40;
+        educationLevels['Master'] = 30;
+        educationLevels['College'] = 20;
+        educationLevels['Below College'] = 5;
+        educationLevels['Doctor'] = 5;
+    }
+
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(educationLevels),
+            datasets: [{
+                data: Object.values(educationLevels),
+                backgroundColor: [
+                    'rgba(234, 67, 53, 0.8)',
+                    'rgba(251, 188, 5, 0.8)',
+                    'rgba(52, 168, 83, 0.8)',
+                    'rgba(66, 133, 244, 0.8)',
+                    'rgba(171, 71, 188, 0.8)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+// Perform comprehensive data analysis
+function performComprehensiveAnalysis() {
+    const departmentStats = {};
+    const ageGroups = {
+        'Under 30': { total: 0, attrition: 0 },
+        '30-39': { total: 0, attrition: 0 },
+        '40-49': { total: 0, attrition: 0 },
+        '50+': { total: 0, attrition: 0 }
+    };
+    const incomeGroups = {
+        'Under $3k': { total: 0, attrition: 0 },
+        '$3k-$5k': { total: 0, attrition: 0 },
+        '$5k-$8k': { total: 0, attrition: 0 },
+        'Over $8k': { total: 0, attrition: 0 }
+    };
+
+    attritionData.forEach(emp => {
+        // Department analysis
+        if (!departmentStats[emp.Department]) departmentStats[emp.Department] = { total: 0, attrition: 0 };
+        departmentStats[emp.Department].total++;
+        if (emp.Attrition === 'Yes') departmentStats[emp.Department].attrition++;
+
+        // Age analysis
+        let ageGroup = '50+';
+        if (emp.Age < 30) ageGroup = 'Under 30';
+        else if (emp.Age < 40) ageGroup = '30-39';
+        else if (emp.Age < 50) ageGroup = '40-49';
+        ageGroups[ageGroup].total++;
+        if (emp.Attrition === 'Yes') ageGroups[ageGroup].attrition++;
+
+        // Income analysis
+        let incomeGroup = 'Over $8k';
+        if (emp.MonthlyIncome < 3000) incomeGroup = 'Under $3k';
+        else if (emp.MonthlyIncome < 5000) incomeGroup = '$3k-$5k';
+        else if (emp.MonthlyIncome < 8000) incomeGroup = '$5k-$8k';
+        incomeGroups[incomeGroup].total++;
+        if (emp.Attrition === 'Yes') incomeGroups[incomeGroup].attrition++;
+    });
+
+    return {
+        departmentStats: Object.entries(departmentStats).map(([dept, stats]) => ({
+            department: dept,
+            attritionRate: ((stats.attrition / stats.total) * 100).toFixed(1),
+            count: stats.total
+        })),
+        ageGroups: Object.entries(ageGroups).map(([group, stats]) => ({
+            group,
+            attritionRate: stats.total > 0 ? ((stats.attrition / stats.total) * 100).toFixed(1) : "0.0",
+            total: stats.total
+        })),
+        incomeGroups: Object.entries(incomeGroups).map(([group, stats]) => ({
+            group,
+            attritionRate: stats.total > 0 ? ((stats.attrition / stats.total) * 100).toFixed(1) : "0.0",
+            total: stats.total
+        }))
+    };
+}
