@@ -367,7 +367,7 @@
 
         <section id="inspect">
             <h2>2. 🔍 Advanced Data Analysis</h2>
-            <button id="inspect-btn" onclick="inspectAttritionData()" disabled>Run Comprehensive EDA</button>
+            <button id="inspect-btn" onclick="window.inspectAttritionData && window.inspectAttritionData()" disabled>Run Comprehensive EDA</button>
             <div id="data-preview" class="data-preview"></div>
             <div id="data-stats"></div>
             <div id="eda-charts"></div>
@@ -380,8 +380,8 @@
                 <p><strong>Feature Importance:</strong> Understand which factors most influence attrition</p>
                 <p><strong>Model Comparison:</strong> See how different algorithms perform</p>
             </div>
-            <button id="model-btn" onclick="analyzeModels()" disabled>Compare Model Performance</button>
-            <button class="ml-training-btn" onclick="createAndTrainModel()" id="train-btn" disabled>🧠 Train Real Neural Network</button>
+            <button id="model-btn" onclick="window.analyzeModels && window.analyzeModels()" disabled>Compare Model Performance</button>
+            <button class="ml-training-btn" onclick="window.createAndTrainModel && window.createAndTrainModel()" id="train-btn" disabled>🧠 Train Real Neural Network</button>
             <div id="model-comparison"></div>
             <div id="feature-importance"></div>
         </section>
@@ -440,23 +440,20 @@
                     <input type="number" id="predict-stock" min="0" max="3" value="1">
                 </div>
             </div>
-            <button onclick="predictAttrition()">Predict Attrition Risk</button>
+            <button onclick="window.predictAttrition && window.predictAttrition()">Predict Attrition Risk</button>
             <div id="prediction-result"></div>
         </section>
     </div>
 
     <script src="app.js"></script>
     <script>
-        // Additional functions for enhanced UI integration
-        function updateMLStatus(isRealML) {
-            const statusDiv = document.getElementById('prediction-status');
-            if (isRealML) {
-                statusDiv.style.display = 'none';
-            } else {
-                statusDiv.style.display = 'block';
-                statusDiv.innerHTML = '<strong>💡 Tip:</strong> Using rule-based predictions. Click "Train Real Neural Network" for more accurate ML predictions!';
-                statusDiv.className = 'status info';
-            }
+        // Debug function to check if functions are available
+        function checkFunctions() {
+            console.log('Available functions:');
+            console.log('inspectAttritionData:', typeof window.inspectAttritionData);
+            console.log('analyzeModels:', typeof window.analyzeModels);
+            console.log('createAndTrainModel:', typeof window.createAndTrainModel);
+            console.log('predictAttrition:', typeof window.predictAttrition);
         }
 
         // Enhanced prediction function with UI updates
@@ -465,7 +462,7 @@
             resultDiv.innerHTML = '<div class="status info">Calculating prediction...</div>';
             
             try {
-                await predictAttrition();
+                await window.predictAttrition();
             } catch (error) {
                 console.error('Prediction error:', error);
                 resultDiv.innerHTML = `
@@ -474,24 +471,12 @@
                         Falling back to rule-based prediction.
                     </div>
                 `;
-                // Force rule-based prediction
-                predictWithRules();
             }
         }
 
-        // Override the original predictAttrition to add UI enhancements
-        const originalPredictAttrition = predictAttrition;
-        predictAttrition = async function() {
-            await originalPredictAttrition();
-            // Update ML status based on which method was used
-            const resultDiv = document.getElementById('prediction-result');
-            const isRealML = resultDiv.innerHTML.includes('Real Neural Network');
-            updateMLStatus(isRealML);
-        };
-
         // Enhanced model training with UI feedback
-        const originalCreateAndTrainModel = createAndTrainModel;
-        createAndTrainModel = async function() {
+        const originalCreateAndTrainModel = window.createAndTrainModel;
+        window.createAndTrainModel = async function() {
             const trainBtn = document.getElementById('train-btn');
             const originalText = trainBtn.textContent;
             
@@ -521,6 +506,9 @@
 
         // Initialize TensorFlow.js status
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('Enhanced Employee Attrition Predictor UI initialized');
+            checkFunctions();
+            
             const tfStatus = document.createElement('div');
             tfStatus.id = 'tf-status';
             tfStatus.style.marginTop = '10px';
@@ -537,42 +525,70 @@
             document.querySelector('#model-analysis .note').appendChild(tfStatus);
             
             // Auto-enable train button when data is loaded
-            const originalLoadAttritionData = loadAttritionData;
-            loadAttritionData = async function() {
+            const originalLoadAttritionData = window.loadAttritionData;
+            window.loadAttritionData = async function() {
                 await originalLoadAttritionData();
                 if (attritionData && attritionData.length > 0) {
                     document.getElementById('train-btn').disabled = false;
                 }
             };
-        });
 
-        // Keep all the existing visualization functions
-        // They are now in app.js but we maintain compatibility
-        function inspectAttritionData() {
-            if (typeof window.inspectAttritionData === 'function') {
-                window.inspectAttritionData();
-            }
-        }
-
-        function analyzeModels() {
-            if (typeof window.analyzeModels === 'function') {
-                window.analyzeModels();
-            }
-        }
-
-        // Initialize the interface
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('Enhanced Employee Attrition Predictor UI initialized');
-            
             // Set initial prediction status
             updateMLStatus(false);
             
             // Auto-run initial prediction
             setTimeout(() => {
-                if (typeof predictAttrition === 'function') {
-                    predictAttrition();
+                if (typeof window.predictAttrition === 'function') {
+                    window.predictAttrition();
                 }
             }, 1000);
+        });
+
+        function updateMLStatus(isRealML) {
+            const statusDiv = document.getElementById('prediction-status');
+            if (isRealML) {
+                statusDiv.style.display = 'none';
+            } else {
+                statusDiv.style.display = 'block';
+                statusDiv.innerHTML = '<strong>💡 Tip:</strong> Using rule-based predictions. Click "Train Real Neural Network" for more accurate ML predictions!';
+                statusDiv.className = 'status info';
+            }
+        }
+
+        // Override the original predictAttrition to add UI enhancements
+        const originalPredictAttrition = window.predictAttrition;
+        window.predictAttrition = async function() {
+            await originalPredictAttrition();
+            // Update ML status based on which method was used
+            const resultDiv = document.getElementById('prediction-result');
+            const isRealML = resultDiv.innerHTML.includes('Real Neural Network');
+            updateMLStatus(isRealML);
+        };
+
+        // Simple direct function for EDA button
+        function runEDA() {
+            console.log('EDA button clicked');
+            if (window.inspectAttritionData) {
+                window.inspectAttritionData();
+            } else {
+                alert('Function not loaded yet. Please wait or reload the page.');
+                console.error('inspectAttritionData function not found');
+            }
+        }
+
+        // Add direct event listener for EDA button
+        document.addEventListener('DOMContentLoaded', function() {
+            const inspectBtn = document.getElementById('inspect-btn');
+            if (inspectBtn) {
+                inspectBtn.addEventListener('click', function() {
+                    console.log('EDA button clicked via event listener');
+                    if (window.inspectAttritionData) {
+                        window.inspectAttritionData();
+                    } else {
+                        alert('Please load data first!');
+                    }
+                });
+            }
         });
     </script>
 </body>
